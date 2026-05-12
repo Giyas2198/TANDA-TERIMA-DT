@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JO-TRANS | Cloud System Final</title>
+    <title>JO-TRANS | Cloud System Fixed</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
@@ -47,7 +47,7 @@
         <header class="mb-6 flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-sm border-l-8 border-blue-900">
             <div>
                 <h1 class="text-2xl font-bold text-blue-900 tracking-tight">JO-TRANS SYSTEM</h1>
-                <p class="text-sm text-gray-500 font-medium">Cloud Integrated Monitoring | v7 Final</p>
+                <p class="text-sm text-gray-500 font-medium">Monitoring Tanda Terima DT | jtn-pr-control</p>
             </div>
             <div id="statusMsg" class="hidden px-4 py-2 rounded-lg font-bold text-xs shadow-sm"></div>
         </header>
@@ -76,6 +76,7 @@
                     <thead class="sticky top-0 bg-gray-50 shadow-sm z-10 text-[11px] font-bold text-gray-600 uppercase">
                         <tr>
                             <th class="px-6 py-4 text-left">Delivery Ticket</th>
+                            <th class="px-6 py-4 text-left">Transporter</th>
                             <th class="px-6 py-4 text-left">CO No</th>
                             <th class="px-6 py-4 text-left">Customer</th>
                             <th class="px-6 py-4 text-left">Status</th>
@@ -83,7 +84,7 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-gray-100 text-sm">
-                        <tr><td colspan="5" class="px-6 py-20 text-center text-gray-400 italic">Data kosong. Silakan upload file atau tunggu sinkronisasi cloud...</td></tr>
+                        <tr><td colspan="6" class="px-6 py-20 text-center text-gray-400 italic">Memuat data dari cloud...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -101,6 +102,8 @@
                     globalData = docSnap.data().items;
                     renderTable(globalData);
                     showMsg("Cloud Synced", "bg-green-500 text-white");
+                } else {
+                    renderTable([]);
                 }
             } catch (e) { showMsg("Cloud Error", "bg-red-500 text-white"); }
             toggleLoader(false);
@@ -127,24 +130,16 @@
             toggleLoader(false);
         }
 
-        // FUNGSI RESET DATA
         async function resetSystem() {
             if (confirm("⚠️ PERHATIAN: Ini akan menghapus SEMUA data di tabel dan di CLOUD FIREBASE. Anda yakin?")) {
                 toggleLoader(true);
                 try {
-                    // Hapus dari Firebase
                     await window.deleteDoc(window.doc(window.db, "monitoring_dt", "current_status"));
-                    
-                    // Bersihkan dari UI
                     globalData = [];
                     renderTable([]);
                     document.getElementById('uploadInput').value = '';
-                    document.getElementById('searchInput').value = '';
-                    
                     showMsg("Database Dibersihkan", "bg-gray-800 text-white");
-                } catch (e) {
-                    alert("Gagal reset: " + e.message);
-                }
+                } catch (e) { alert("Gagal reset: " + e.message); }
                 toggleLoader(false);
             }
         }
@@ -170,7 +165,7 @@
             const tbody = document.getElementById('tableBody');
             tbody.innerHTML = '';
             if(data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="px-6 py-20 text-center text-gray-400 italic">Database Kosong.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-20 text-center text-gray-400 italic">Database Kosong.</td></tr>';
                 return;
             }
             data.forEach((row) => {
@@ -181,6 +176,7 @@
                 
                 tr.innerHTML = `
                     <td class="px-6 py-4 font-bold text-gray-800">${dtID}</td>
+                    <td class="px-6 py-4 text-gray-600 text-xs">${row['Transporter'] || '-'}</td>
                     <td class="px-6 py-4 font-medium text-blue-700">${row['CO No'] || row['Order'] || '-'}</td>
                     <td class="px-6 py-4 text-gray-500 text-xs">${row['Customer'] || '-'}</td>
                     <td class="px-6 py-4">
