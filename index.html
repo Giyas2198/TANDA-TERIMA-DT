@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JO-TRANS | Cloud System Fixed</title>
+    <title>JO-TRANS | Cloud System v9</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
@@ -47,14 +47,14 @@
         <header class="mb-6 flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-sm border-l-8 border-blue-900">
             <div>
                 <h1 class="text-2xl font-bold text-blue-900 tracking-tight">JO-TRANS SYSTEM</h1>
-                <p class="text-sm text-gray-500 font-medium">Monitoring Tanda Terima DT | jtn-pr-control</p>
+                <p class="text-sm text-gray-500 font-medium italic">Fitur: Tambah Data (Multi-Upload) Aktif</p>
             </div>
             <div id="statusMsg" class="hidden px-4 py-2 rounded-lg font-bold text-xs shadow-sm"></div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-8">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
-                <label class="block mb-2 font-bold text-[10px] text-gray-400 uppercase tracking-widest">1. File Management</label>
+                <label class="block mb-2 font-bold text-[10px] text-gray-400 uppercase tracking-widest">1. Tambah Data Excel</label>
                 <input type="file" id="uploadInput" accept=".csv, .xlsx" class="w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-blue-50 file:text-blue-700 file:font-bold hover:file:bg-blue-100" />
             </div>
             
@@ -84,7 +84,7 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody" class="divide-y divide-gray-100 text-sm">
-                        <tr><td colspan="6" class="px-6 py-20 text-center text-gray-400 italic">Memuat data dari cloud...</td></tr>
+                        <tr><td colspan="6" class="px-6 py-20 text-center text-gray-400 italic">Sinkronisasi data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -131,15 +131,14 @@
         }
 
         async function resetSystem() {
-            if (confirm("⚠️ PERHATIAN: Ini akan menghapus SEMUA data di tabel dan di CLOUD FIREBASE. Anda yakin?")) {
+            if (confirm("⚠️ PERHATIAN: Ini akan menghapus SEMUA data. Anda yakin?")) {
                 toggleLoader(true);
                 try {
                     await window.deleteDoc(window.doc(window.db, "monitoring_dt", "current_status"));
                     globalData = [];
                     renderTable([]);
-                    document.getElementById('uploadInput').value = '';
-                    showMsg("Database Dibersihkan", "bg-gray-800 text-white");
-                } catch (e) { alert("Gagal reset: " + e.message); }
+                    showMsg("Database Bersih", "bg-gray-800 text-white");
+                } catch (e) { alert("Gagal: " + e.message); }
                 toggleLoader(false);
             }
         }
@@ -150,13 +149,31 @@
             reader.onload = (evt) => {
                 const data = new Uint8Array(evt.target.result);
                 const workbook = XLSX.read(data, {type: 'array'});
-                const json = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                globalData = json.map(item => ({
-                    ...item, 
-                    'Tanda Terima': item['Tanda Terima'] || 'Belum Diterima',
-                    'Tgl Diterima': item['Tgl Diterima'] || ''
-                }));
+                const newData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                // LOGIKA APPEND (TAMBAH DATA TANPA HAPUS LAMA)
+                newData.forEach(newItem => {
+                    const newDT = String(newItem['Delivery Ticket'] || newItem['DT'] || '');
+                    const existingIdx = globalData.findIndex(oldItem => 
+                        String(oldItem['Delivery Ticket'] || oldItem['DT']) === newDT
+                    );
+
+                    if (existingIdx !== -1) {
+                        // Jika DT sudah ada, update isinya saja (kecuali status yang sudah "Sudah Diterima")
+                        globalData[existingIdx] = { ...globalData[existingIdx], ...newItem };
+                    } else {
+                        // Jika DT benar-benar baru, tambahkan ke list
+                        globalData.push({
+                            ...newItem,
+                            'Tanda Terima': newItem['Tanda Terima'] || 'Belum Diterima',
+                            'Tgl Diterima': newItem['Tgl Diterima'] || ''
+                        });
+                    }
+                });
+
                 renderTable(globalData);
+                showMsg("Data Berhasil Ditambahkan", "bg-blue-100 text-blue-700");
+                e.target.value = ''; // Reset input agar bisa upload file yang sama lagi
             };
             reader.readAsArrayBuffer(file);
         });
@@ -193,7 +210,7 @@
         }
 
         function updateStatus(dtID, value, el) {
-            const idx = globalData.findIndex(i => (i['Delivery Ticket'] || i['DT']) == dtID);
+            const idx = globalData.findIndex(i => String(i['Delivery Ticket'] || i['DT']) === String(dtID));
             if (idx !== -1) {
                 const row = el.closest('tr');
                 const tglCell = row.querySelector('.tgl-cell');
